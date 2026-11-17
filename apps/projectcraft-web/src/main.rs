@@ -3,12 +3,12 @@
 #![forbid(unsafe_code)]
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
+use axum::Router;
 use axum::body::Body;
 use axum::extract::Path;
 use axum::http::{HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
-use axum::Router;
 use include_dir::{Dir, include_dir};
 
 static ASSETS: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/dist");
@@ -54,15 +54,9 @@ async fn asset(Path(path): Path<String>) -> Response {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let port = std::env::var("PORT")
-        .ok()
-        .and_then(|s| s.parse::<u16>().ok())
-        .unwrap_or(8080);
+    let port = std::env::var("PORT").ok().and_then(|s| s.parse::<u16>().ok()).unwrap_or(8080);
     let listener = tokio::net::TcpListener::bind(("0.0.0.0", port)).await?;
-    let router = Router::new()
-        .route("/", get(index))
-        .route("/healthz", get(|| async { "ok" }))
-        .route("/{*path}", get(asset));
+    let router = Router::new().route("/", get(index)).route("/healthz", get(|| async { "ok" })).route("/{*path}", get(asset));
     axum::serve(listener, router).await?;
     Ok(())
 }
