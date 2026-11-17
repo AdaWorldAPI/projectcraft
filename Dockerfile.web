@@ -1,9 +1,10 @@
-# ProjectCraft web: build the original Rust egui UI to WASM, then embed all
-# generated static assets in the same Axum server executable.
+# Original ProjectCraft egui UI -> browser WASM; one Axum executable embeds it.
+# Use a published Trunk binary instead of compiling Trunk in Railway.
 FROM rust:1.95-bookworm AS builder
-RUN apt-get update && apt-get install -y --no-install-recommends pkg-config libssl-dev ca-certificates curl clang && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl && rm -rf /var/lib/apt/lists/*
 RUN rustup target add wasm32-unknown-unknown
-RUN cargo install trunk --version 0.22.1 --locked
+ARG TRUNK_VERSION=0.22.1
+RUN curl --proto '=https' -fsSL "https://github.com/trunk-rs/trunk/releases/download/v${TRUNK_VERSION}/trunk-x86_64-unknown-linux-gnu.tar.gz" | tar -xz -C /usr/local/bin trunk
 WORKDIR /app
 COPY . .
 RUN cd apps/projectcraft-web && trunk build --release --public-url /
