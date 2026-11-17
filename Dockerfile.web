@@ -1,0 +1,18 @@
+# ProjectCraft web: build the original Rust egui UI to WASM, then embed all
+# generated static assets in the same Axum server executable.
+FROM rust:1.95-bookworm AS builder
+RUN apt-get update && apt-get install -y --no-install-recommends pkg-config libssl-dev ca-certificates curl clang && rm -rf /var/lib/apt/lists/*
+RUN rustup target add wasm32-unknown-unknown
+RUN cargo install trunk --version 0.22.1 --locked
+WORKDIR /app
+COPY . .
+RUN cd apps/projectcraft-web && trunk build --release --public-url /
+RUN cargo build --release -p projectcraft-web --features web-host --bin projectcraft-web
+
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
+COPY --from=builder /app/target/release/projectcraft-web /usr/local/bin/projectcraft-web
+ENV PORT=8080
+EXPOSE 8080
+USER 65532:65532
+CMD ["projectcraft-web"]
