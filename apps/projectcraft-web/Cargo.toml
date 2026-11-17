@@ -1,0 +1,35 @@
+[package]
+name = "projectcraft-web"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+description = "ProjectCraft's original egui UI in the browser, served by one Rust executable"
+
+[lints]
+workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "projectcraft-web"
+path = "src/main.rs"
+required-features = ["web-host"]
+
+[features]
+default = []
+web-host = ["dep:axum", "dep:tokio", "dep:include_dir"]
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+projectcraft-engine = { workspace = true }
+projectcraft-ui-egui = { workspace = true }
+eframe = { workspace = true, features = ["default_fonts", "wgpu"] }
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlCanvasElement", "Storage", "console"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+axum = { version = "0.8", optional = true }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net"], optional = true }
+include_dir = { version = "0.7", optional = true }
