@@ -7,3 +7,6 @@ plan/
 /target-*/
 *.projectcraft
 !crates/engine/tests/fixtures/**/*.projectcraft
+
+# Trunk output for the web build (made by Dockerfile.web; embedded by projectcraft-web)
+/apps/projectcraft-web/dist/

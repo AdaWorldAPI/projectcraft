@@ -67,12 +67,18 @@ mod browser {
 
     impl eframe::App for WebApp {
         fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-            ui.horizontal_wrapped(|ui| {
-                ui.strong("ProjectCraft");
-                ui.separator();
-                ui.label("Browser-local preview: changes stay on this device, not on a server.");
+            // This strip sits outside the app's own panels, so paint the theme's panel fill
+            // under everything first: unfilled, the strip and the gap below it showed the
+            // canvas's dark clear colour, with dark text on it.
+            ui.painter().rect_filled(ui.max_rect(), 0.0, ui.visuals().panel_fill);
+            egui::Frame::new().fill(ui.visuals().panel_fill).inner_margin(egui::Margin::symmetric(8, 4)).show(ui, |ui| {
+                ui.set_width(ui.available_width());
+                ui.horizontal_wrapped(|ui| {
+                    ui.strong("ProjectCraft");
+                    ui.separator();
+                    ui.label("Browser-local preview: changes stay on this device, not on a server.");
+                });
             });
-            ui.separator();
             self.app.ui(ui);
             startup_ready();
             // Native file dialogs cannot operate on browser sandbox paths.
