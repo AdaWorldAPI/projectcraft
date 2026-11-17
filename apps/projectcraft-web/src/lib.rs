@@ -15,6 +15,25 @@ mod browser {
 
     const STORAGE_KEY: &str = "projectcraft-local-snapshot-v1";
 
+    // Keep browser startup failures visible even if the canvas cannot be painted.
+    fn startup_message(message: &str) {
+        if let Some(status) = web_sys::window()
+            .and_then(|w| w.document())
+            .and_then(|d| d.get_element_by_id("boot-status"))
+        {
+            status.set_text_content(Some(message));
+        }
+    }
+
+    fn startup_ready() {
+        if let Some(status) = web_sys::window()
+            .and_then(|w| w.document())
+            .and_then(|d| d.get_element_by_id("boot-status"))
+        {
+            let _ = status.set_attribute("hidden", "true");
+        }
+    }
+
     struct WebApp {
         app: App,
         last_saved: String,
@@ -64,6 +83,7 @@ mod browser {
             });
             ui.separator();
             self.app.ui(ui);
+            startup_ready();
             // Native file dialogs cannot operate on browser sandbox paths.
             // Do not silently attempt to save or open a server file.
             if let Some(request) = self.app.take_file_request() {
@@ -76,12 +96,14 @@ mod browser {
 
     #[wasm_bindgen(start)]
     pub fn boot() {
+        startup_message("Initializing ProjectCraft (WebGL2)…");
         wasm_bindgen_futures::spawn_local(async {
             let Some(canvas) = web_sys::window()
                 .and_then(|w| w.document())
                 .and_then(|d| d.get_element_by_id("projectcraft_canvas"))
                 .and_then(|e| e.dyn_into::<web_sys::HtmlCanvasElement>().ok())
             else {
+                startup_message("ProjectCraft failed to start: browser canvas missing.");
                 web_sys::console::error_1(&"ProjectCraft: canvas missing".into());
                 return;
             };
@@ -94,6 +116,7 @@ mod browser {
                 )
                 .await
             {
+                startup_message(&format!("ProjectCraft could not initialize WebGL: {err:?}. Check that WebGL2 is enabled in this browser."));
                 web_sys::console::error_1(&err);
             }
         });
