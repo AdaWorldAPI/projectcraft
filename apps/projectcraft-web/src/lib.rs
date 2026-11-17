@@ -6,7 +6,10 @@
 
 #[cfg(target_arch = "wasm32")]
 mod browser {
-    use std::time::{Duration, Instant};
+    // Not `std::time::Instant`: on wasm32-unknown-unknown it panics ("time not
+    // implemented on this platform"), which left the live page black. egui's own
+    // frame clock (`InputState::time`, seconds) works on every target.
+    use std::time::Duration;
 
     use eframe::egui;
     use projectcraft_engine::{Session, sample};
@@ -17,19 +20,13 @@ mod browser {
 
     // Keep browser startup failures visible even if the canvas cannot be painted.
     fn startup_message(message: &str) {
-        if let Some(status) = web_sys::window()
-            .and_then(|w| w.document())
-            .and_then(|d| d.get_element_by_id("boot-status"))
-        {
+        if let Some(status) = web_sys::window().and_then(|w| w.document()).and_then(|d| d.get_element_by_id("boot-status")) {
             status.set_text_content(Some(message));
         }
     }
 
     fn startup_ready() {
-        if let Some(status) = web_sys::window()
-            .and_then(|w| w.document())
-            .and_then(|d| d.get_element_by_id("boot-status"))
-        {
+        if let Some(status) = web_sys::window().and_then(|w| w.document()).and_then(|d| d.get_element_by_id("boot-status")) {
             let _ = status.set_attribute("hidden", "true");
         }
     }
@@ -37,7 +34,7 @@ mod browser {
     struct WebApp {
         app: App,
         last_saved: String,
-        last_check: Instant,
+        last_check: f64,
     }
 
     fn storage() -> Option<web_sys::Storage> {
@@ -46,23 +43,17 @@ mod browser {
 
     impl WebApp {
         fn new() -> Self {
-            let project = storage()
-                .and_then(|s| s.get_item(STORAGE_KEY).ok().flatten())
-                .and_then(|text| Session::load_json(&text).ok())
-                .unwrap_or_else(sample);
+            let project =
+                storage().and_then(|s| s.get_item(STORAGE_KEY).ok().flatten()).and_then(|text| Session::load_json(&text).ok()).unwrap_or_else(sample);
             let initial = project.save_json().unwrap_or_default();
-            Self {
-                app: App::new(project, None),
-                last_saved: initial,
-                last_check: Instant::now(),
-            }
+            Self { app: App::new(project, None), last_saved: initial, last_check: f64::NEG_INFINITY }
         }
 
-        fn save_local(&mut self) {
-            if self.last_check.elapsed() < Duration::from_millis(750) {
+        fn save_local(&mut self, now: f64) {
+            if now - self.last_check < 0.75 {
                 return;
             }
-            self.last_check = Instant::now();
+            self.last_check = now;
             let Ok(current) = self.app.session.save_json() else {
                 return;
             };
@@ -89,7 +80,8 @@ mod browser {
             if let Some(request) = self.app.take_file_request() {
                 self.app.file_picked(request, None);
             }
-            self.save_local();
+            let now = ui.ctx().input(|i| i.time);
+            self.save_local(now);
             ui.ctx().request_repaint_after(Duration::from_secs(1));
         }
     }
@@ -108,14 +100,7 @@ mod browser {
                 return;
             };
             let runner = eframe::WebRunner::new();
-            if let Err(err) = runner
-                .start(
-                    canvas,
-                    eframe::WebOptions::default(),
-                    Box::new(|_| Ok(Box::new(WebApp::new()))),
-                )
-                .await
-            {
+            if let Err(err) = runner.start(canvas, eframe::WebOptions::default(), Box::new(|_| Ok(Box::new(WebApp::new())))).await {
                 startup_message(&format!("ProjectCraft could not initialize WebGL: {err:?}. Check that WebGL2 is enabled in this browser."));
                 web_sys::console::error_1(&err);
             }
