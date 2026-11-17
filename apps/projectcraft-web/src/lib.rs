@@ -56,22 +56,21 @@ mod browser {
     }
 
     impl eframe::App for WebApp {
-        fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-            egui::TopBottomPanel::top("web_notice").show(ctx, |ui| {
-                ui.horizontal_wrapped(|ui| {
-                    ui.strong("ProjectCraft");
-                    ui.separator();
-                    ui.label("Browser-local preview: changes stay on this device, not on a server.");
-                });
+        fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+            ui.horizontal_wrapped(|ui| {
+                ui.strong("ProjectCraft");
+                ui.separator();
+                ui.label("Browser-local preview: changes stay on this device, not on a server.");
             });
-            egui::CentralPanel::default().show(ctx, |ui| self.app.ui(ui));
+            ui.separator();
+            self.app.ui(ui);
             // Native file dialogs cannot operate on browser sandbox paths.
             // Do not silently attempt to save or open a server file.
             if let Some(request) = self.app.take_file_request() {
                 self.app.file_picked(request, None);
             }
             self.save_local();
-            ctx.request_repaint_after(Duration::from_secs(1));
+            ui.ctx().request_repaint_after(Duration::from_secs(1));
         }
     }
 
